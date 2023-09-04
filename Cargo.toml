@@ -1,0 +1,16 @@
+[package]
+name = "jq_live_query"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[env]
+JQ_LIB_DIR="/usr/lib/libjq.so"
+
+[dependencies]
+clap = { version = "4.4.2", features = ["derive"] }
+crossterm = "0.27.0"
+jq-rs = "0.4.1"
+ratatui = { version = "0.23.0", features = ["all-widgets"] }
+serde_json = "1.0.105"
