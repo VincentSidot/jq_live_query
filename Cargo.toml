@@ -5,8 +5,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[env]
-JQ_LIB_DIR="/usr/lib/libjq.so"
 
 [dependencies]
 clap = { version = "4.4.2", features = ["derive"] }

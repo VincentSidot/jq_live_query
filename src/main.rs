@@ -15,15 +15,16 @@ struct Args {
     input: String,
 }
 
-
-
-
 fn main() -> Result<(), std::io::Error> {
-
     let args = Args::parse();
 
     let config = Config::new();
     let mut app = App::new(args.input, &config)?;
-    app.run()?;
+    match app.run() {
+        Ok(value) => {
+            println!("Return status: {}", value)
+        }
+        Err(_) => {}
+    }
     Ok(())
 }
