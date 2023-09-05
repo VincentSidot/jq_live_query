@@ -7,21 +7,45 @@ use ratatui::{
     backend::CrosstermBackend,
     Terminal,
 };
-use std::{io, panic::catch_unwind, f32::consts::E};
+use std::io;
 
 use crate::app::{
     Config,
     widgets::{
         Input,
-        Json,
+        Jq,
         Drawable
     }
 };
 
+pub enum Selected {
+    Input,
+    JsonFiltered,
+    JsonBase,
+}
+
+impl Selected {
+    fn next(&mut self) -> &Selected{
+        match self {
+            Selected::Input => {
+                *self = Selected::JsonFiltered;
+            },
+            Selected::JsonFiltered => {
+                *self = Selected::JsonBase;
+            },
+            Selected::JsonBase => {
+                *self = Selected::Input;
+            },
+        }
+        self
+    }
+}
+
 pub struct App<'a> {
     terminal: Box<Terminal<CrosstermBackend<io::Stdout>>>,
     input: Input<'a>,
-    json_output: Json<'a>,
+    json_output: Jq<'a>,
+    selected: Selected,
 }
 
 impl App<'_> {
@@ -33,16 +57,17 @@ impl App<'_> {
         let backend = CrosstermBackend::new(stdout);
         let terminal = Box::new(Terminal::new(backend).unwrap());
 
-
+        let selected = Selected::Input;
         
         let mut input = Input::new("Input", ".", config);
-        input.set_selected(true);
-        let json_output = Json::new(json_file_path, config);
+        input.set_selected(&selected);
+        let json_output = Jq::new(json_file_path, config);
 
         Ok(App{
             terminal,
             input,
             json_output,
+            selected,
         })
     }
 
@@ -87,10 +112,9 @@ impl App<'_> {
                         kind: _,
                         state: _,
                     }) => {
-                        let selected = (self.json_output.selected() + 1)%3 ;
-                        self.json_output.set_selected(selected);
-                        self.input.set_selected(selected == 0);
-
+                        self.selected.next();
+                        self.input.set_selected(&self.selected);
+                        self.json_output.set_selected(&self.selected);
                     }
                     event::Event::Key(event) => {
                         self.input.handle_event(event);
@@ -105,7 +129,7 @@ impl App<'_> {
 
     fn render(&mut self) -> Result<(), io::Error> {
         // Clear the screen
-        if self.json_output.consuume_clear() {
+        if self.json_output.consume_clear() {
             self.terminal.clear()?;
         }
 

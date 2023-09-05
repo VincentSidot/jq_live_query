@@ -10,6 +10,7 @@ use crossterm::event;
 
 use crate::app::widgets::Drawable;
 use crate::app::Config;
+use crate::app::app::Selected;
 
 pub struct Input<'a> {
     prompt: &'a str,
@@ -56,12 +57,15 @@ impl<'a> Input<'a>{
         &self.prompt
     }
 
-    pub fn set_selected(&mut self, selected: bool) {
-        self.selected = selected;
-    }
-
-    pub fn selected(&self) -> bool {
-        self.selected
+    pub fn set_selected(&mut self, selected: &Selected) {
+        match selected {
+            Selected::Input => {
+                self.selected = true;
+            },
+            _ => {
+                self.selected = false;
+            }
+        }
     }
 
     pub fn set_valid(&mut self, is_valid: bool) {
@@ -189,7 +193,7 @@ impl<'a> Input<'a>{
                     kind: _,
                     state: _,
                 } | event::KeyEvent{ // Handle ctrl + a
-                    code: event::KeyCode::Char('a'),
+                    code: event::KeyCode::Char('a') | event::KeyCode::Char('A'),
                     modifiers: event::KeyModifiers::CONTROL,
                     kind: _,
                     state: _,
@@ -202,12 +206,21 @@ impl<'a> Input<'a>{
                     kind: _,
                     state: _,
                 } | event::KeyEvent{ // Handle ctrl + e
-                    code: event::KeyCode::Char('e'),
+                    code: event::KeyCode::Char('e') | event::KeyCode::Char('E'),
                     modifiers: event::KeyModifiers::CONTROL,
                     kind: _,
                     state: _,
                 } => {
                     self.cursor_position = self.value.len();
+                }
+                event::KeyEvent{ // Handle ctrl + l
+                    code: event::KeyCode::Char('l') | event::KeyCode::Char('L'),
+                    modifiers: event::KeyModifiers::CONTROL,
+                    kind: _,
+                    state: _,
+                } => {
+                    self.value.clear();
+                    self.cursor_position = 0;
                 }
                 event::KeyEvent{ // Handle any char
                     code: event::KeyCode::Char(c),
