@@ -33,28 +33,12 @@ impl<'a> Input<'a>{
             selected: false,
             config,
             is_valid: true,
-            cursor_position: 0,
+            cursor_position: default.len(),
         }
     }
 
     pub fn value(&self) -> &str {
         &self.value
-    }
-
-    pub fn set_value(&mut self, value: &str) {
-        self.value = value.to_string();
-    }
-
-    pub fn clear(&mut self) {
-        self.value.clear();
-    }
-
-    pub fn set_prompt(&mut self, prompt: &'a str) {
-        self.prompt = prompt;
-    }
-
-    pub fn prompt(&self) -> &str {
-        &self.prompt
     }
 
     pub fn set_selected(&mut self, selected: &Selected) {

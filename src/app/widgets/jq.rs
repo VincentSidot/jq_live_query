@@ -1,7 +1,6 @@
 use ratatui::{
-    widgets::{Block, Borders, Paragraph},
     layout::{Layout, Direction, Constraint},
-    style::Style, text, backend::Backend,
+    backend::Backend,
 };
 
 use crate::app::widgets::{Drawable, Input, Json};
@@ -9,51 +8,34 @@ use crate::app::Config;
 use crate::app::app::Selected;
 
 use jq_rs;
-use serde_json::{self, Value};
-
 pub struct Jq<'a> {
-    config: &'a Config,
     pub json_base: Json<'a>,
     pub json_filtered: Json<'a>,
     need_to_clear: bool,
 }
 
-fn pretty_json(json: &String) -> Option<String> {
-    let serde_json_value: Result<Value, serde_json::Error> = serde_json::from_str(json);
-    if serde_json_value.is_ok() {
-        let pretty_json = serde_json::to_string_pretty(&serde_json_value.unwrap());
-        if pretty_json.is_ok() {
-            return Some(pretty_json.unwrap());
-        } else {
-            return None;
-        }
-        
-    } else {
-        return None;        
-    }
-}
-
 impl<'a> Jq<'a> {
     pub fn new(json_file_path: String, config: &'a Config) -> Jq<'a> {
-        match pretty_json(&std::fs::read_to_string(json_file_path).unwrap()) {
-            Some(pretty_json) => {
+        let json_file_path_clone = json_file_path.clone();
+        match std::fs::read_to_string(json_file_path) {
+            Ok(json) => {
                 Jq {
-                    config,
                     json_base: Json::new(
-                        pretty_json,
+                        json,
                         "JSON File".to_string(),
+                        Some(json_file_path_clone),
                         config
                     ),
                     json_filtered: Json::new(
                         String::new(),
                         "JQ Output".to_string(),
+                        None,
                         config
                     ),
-                    
                     need_to_clear: false,
                 }
             },
-            None => {
+            Err(_) => {
                 panic!("Invalid JSON file")
             }
         }
@@ -82,22 +64,12 @@ impl<'a> Jq<'a> {
         }
     }
 
-    pub fn apply_filter<'b> (&mut self, input: &'b mut Input) -> () {
-        // I use 'b here because the lifetime of input is shorter than self.
-        // We only need input to get the value of the input widget.
+    pub fn apply_filter (&mut self, input: &mut Input) -> () {
         self.json_filtered.set_json(
-            match jq_rs::run(input.value(), &self.json_base.json()) {
+            match jq_rs::run(input.value(), self.json_base.json()) {
                 Ok(result) => {
-                    match pretty_json(&result) {
-                        Some(pretty_json) => {
-                            input.set_valid(true);
-                            pretty_json
-                        },
-                        None => {
-                            input.set_valid(false);
-                            format!("Error: Invalid JSON")
-                        }
-                    }
+                    input.set_valid(true);
+                    result
                 },
                 Err(error) => {
                     input.set_valid(false);
@@ -115,10 +87,6 @@ impl Drawable for Jq<'_> {
         f: &mut ratatui::Frame<B>,
         area: ratatui::layout::Rect,
     ) -> Result<(), std::fmt::Error>{
-
-        let bg_color = self.config.color.background;
-        let fg_color = self.config.color.foreground;
-        let selected_fg_color = self.config.color.selected_foreground;
 
         let layout = Layout::default()
             .direction(Direction::Horizontal)

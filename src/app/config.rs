@@ -1,7 +1,7 @@
 use ratatui::style::Color;
 
 
-pub struct ColorConfig {
+pub struct _Color {
     pub foreground: Color,
     pub background: Color,
     pub selected_foreground: Color,
@@ -11,14 +11,24 @@ pub struct ColorConfig {
     pub cursor_foreground: Color,
 }
 
+pub struct _Json {
+    pub json_key: Color,
+    pub json_string: Color,
+    pub json_number: Color,
+    pub json_boolean: Color,
+    pub json_null: Color,
+    pub indent: usize,
+}
+
 pub struct Config {
-    pub color: ColorConfig,    
+    pub color: _Color,
+    pub json: _Json,
 }
 
 impl Config {
     pub fn new() -> Config {
         Config {
-            color: ColorConfig {
+            color: _Color {
                 foreground: Color::White,
                 background: Color::Reset,
                 selected_foreground: Color::Yellow,
@@ -26,6 +36,14 @@ impl Config {
                 invalid_foreground: Color::Red,
                 cursor_background: Color::White,
                 cursor_foreground: Color::Reset,
+            },
+            json: _Json {
+                json_key: Color::Cyan,
+                json_string: Color::Green,
+                json_number: Color::Blue,
+                json_boolean: Color::Yellow,
+                json_null: Color::Red,
+                indent: 2,
             },
         }
     }
