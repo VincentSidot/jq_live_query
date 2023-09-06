@@ -10,46 +10,46 @@ use ratatui::{
     
 };
 
-use std::mem::take;
-
 use crossterm::event;
 
 use std::string::String;
 
 use crate::app::widgets::Drawable;
 use crate::app::Config;
+use serde_json::{self, Value};
 
 pub struct Json<'a> {
     selected: bool,
     config: &'a Config,
-    json: Box<String>,
+    raw: String,
+    json: Text<'a>,
+    json_lines_count: usize,
     title: String,
     right_title: Option<String>,
     scroll: usize,
-    json_pretty: Text<'a>,
-    json_lines_count: usize,
 }
 
-use serde_json::{self, Value};
 
 
 impl<'a> Json<'a> {
     pub fn new(json_payload: String, title: String, right_title: Option<String>, config: &'a Config) -> Json<'a> {
-        Json {
+        let mut json = Json {
             selected: false,
             config,
-            json: Box::new(json_payload),
+            raw: String::from("Loading..."),
             title,
             right_title,
             scroll: 0,
-            json_pretty: Text::from(Span::styled(
+            json: Text::from(Span::styled(
                 "Loading...",
                 Style::default()
                     .fg(config.color.foreground)
                     .bg(config.color.background)
             )),
             json_lines_count: 0,
-        }
+        };
+        json.set_json(json_payload);
+        json
     }
     
     pub fn set_selected(&mut self, selected: bool) {
@@ -187,7 +187,7 @@ impl<'a> Json<'a> {
     }
 
     fn pretty_json(&mut self) -> Option<Text<'a>> {
-        match serde_json::from_str(&self.json) {
+        match serde_json::from_str(&self.raw) {
             Ok(serde_json_value) => {
                 
                 let mut spans: Vec<Vec<Span>> = Vec::new();
@@ -207,22 +207,22 @@ impl<'a> Json<'a> {
     }
 
     pub fn json(&self) -> &str {
-        &self.json
+        &self.raw
     }
 
-    pub fn set_json(&'a mut self, json: String) {
+    pub fn set_json(&mut self, json: String) {
         let json_text: Text;
-        self.json = Box::new(json);
-        self.json_pretty = match self.pretty_json() {
+        self.raw = json;
+        self.json = match self.pretty_json() {
             Some(pretty_json) => pretty_json,
             None => {
                 let is_error = {
                     // Check if the string starts with "Error: "
                     let error_prefix = "Error: ";
-                    self.json.starts_with(error_prefix)
+                    self.raw.starts_with(error_prefix)
                 };
                 json_text = Text::from(Span::styled(
-                        &*self.json,
+                        self.raw.clone(),
                         Style::default()
                             .fg(
                                 if is_error {self.config.color.invalid_foreground}
@@ -279,7 +279,7 @@ impl Drawable for Json<'_> {
         }
         ;
         
-        let content = Paragraph::new(self.json_pretty.clone())
+        let content = Paragraph::new(self.json.clone())
             .block(Block::default()
                 .title(
                     Span::styled(

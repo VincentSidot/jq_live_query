@@ -48,8 +48,8 @@ pub struct App<'a> {
     selected: Selected,
 }
 
-impl<'a> App<'a> {
-    pub fn new(json_file_path: String, config:&'a Config) -> Result<App<'a>, io::Error> {
+impl App<'_> {
+    pub fn new<'a>(json_file_path: String, config:&'a Config) -> Result<App<'a>, io::Error> {
         enable_raw_mode()?;
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
@@ -83,7 +83,7 @@ impl<'a> App<'a> {
         Ok(())
     }
 
-    pub fn run(&'a mut self) -> Result<i32, io::Error> {
+    pub fn run(&mut self) -> Result<i32, io::Error> {
         let result = self.run_internal();
         self.clean_up()?;
         return match result {
