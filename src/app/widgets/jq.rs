@@ -3,6 +3,8 @@ use ratatui::{
     backend::Backend,
 };
 
+use crossterm::event;
+
 use crate::app::widgets::{Drawable, Input, Json};
 use crate::app::Config;
 use crate::app::app::Selected;
@@ -61,6 +63,14 @@ impl<'a> Jq<'a> {
                 self.json_base.set_selected(false);
                 self.json_filtered.set_selected(false);
             }
+        }
+    }
+
+    pub fn handle_event(&mut self, event: &event::KeyEvent) -> () {
+        if self.json_base.selected() {
+            self.json_base.handle_event(event);
+        } else if self.json_filtered.selected() {
+            self.json_filtered.handle_event(event);
         }
     }
 

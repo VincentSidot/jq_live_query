@@ -3,7 +3,15 @@
 // It can also handle mouse events to select nodes.
 
 use ratatui::{
-    widgets::{Block, Borders, Paragraph, block::Title},
+    widgets::{
+        Block,
+        Borders,
+        Paragraph,
+        block::{
+            Title,
+            title::Position
+        }
+    },
     text::{Line, Span, Text},
     style::Style, backend::Backend,
     prelude::Alignment
@@ -22,11 +30,11 @@ pub struct Json<'a> {
     selected: bool,
     config: &'a Config,
     raw: String,
-    json: Text<'a>,
+    json: Vec<Line<'a>>,
     json_lines_count: usize,
     title: String,
     right_title: Option<String>,
-    scroll: usize,
+    cursor: usize,
 }
 
 
@@ -39,13 +47,13 @@ impl<'a> Json<'a> {
             raw: String::from("Loading..."),
             title,
             right_title,
-            scroll: 0,
-            json: Text::from(Span::styled(
+            cursor: 0,
+            json: vec!(Line::from(Span::styled(
                 "Loading...",
                 Style::default()
                     .fg(config.color.foreground)
                     .bg(config.color.background)
-            )),
+            ))),
             json_lines_count: 0,
         };
         json.set_json(json_payload);
@@ -54,6 +62,10 @@ impl<'a> Json<'a> {
     
     pub fn set_selected(&mut self, selected: bool) {
         self.selected = selected;
+    }
+
+    pub fn selected(&self) -> bool {
+        self.selected
     }
 
     fn recursive_parser<'b> (&self, spans: &'b mut Vec<Vec<Span>>,value: Value, indent: usize) {
@@ -186,7 +198,7 @@ impl<'a> Json<'a> {
         };
     }
 
-    fn pretty_json(&mut self) -> Option<Text<'a>> {
+    fn pretty_json(&mut self) -> Option<Vec<Line<'a>>> {
         match serde_json::from_str(&self.raw) {
             Ok(serde_json_value) => {
                 
@@ -197,8 +209,7 @@ impl<'a> Json<'a> {
                 for span in spans {
                     lines.push(Line::from(span));
                 }
-                self.json_lines_count = lines.len();
-                Some(Text::from(lines))
+                Some(lines)
             },
             Err(_) => {
                 return None
@@ -210,8 +221,27 @@ impl<'a> Json<'a> {
         &self.raw
     }
 
+    fn process_json_content(&self) -> Text<'a> {
+        let mut content = self.json.clone();
+        if self.selected {
+            for (i, line) in content.iter_mut().enumerate() {
+                line.spans.insert(
+                    0,
+                    Span::from(
+                        if self.cursor == i {
+                            "> "
+                        } else {
+                            "  "
+                        }
+                    )
+                )
+            }
+        }
+        Text::from(content)
+    }
+
     pub fn set_json(&mut self, json: String) {
-        let json_text: Text;
+        let json_text: Vec<Line>;
         self.raw = json;
         self.json = match self.pretty_json() {
             Some(pretty_json) => pretty_json,
@@ -221,7 +251,7 @@ impl<'a> Json<'a> {
                     let error_prefix = "Error: ";
                     self.raw.starts_with(error_prefix)
                 };
-                json_text = Text::from(Span::styled(
+                json_text = vec!(Line::from(Span::styled(
                         self.raw.clone(),
                         Style::default()
                             .fg(
@@ -229,32 +259,57 @@ impl<'a> Json<'a> {
                                 else {self.config.color.valid_foreground}
                             )
                             .bg(self.config.color.background)
-                    ));
+                    )));
                 json_text
             },
         };
+        self.json_lines_count = self.json.len();
     }
 
-    pub fn handle_event(&mut self, event: event::KeyEvent) -> () {
+    pub fn handle_event(&mut self, event: &event::KeyEvent) -> () {
         match event {
-            event::KeyEvent { //Handle keyboard up
+            event::KeyEvent { // Handle keyboard up
                 code: event::KeyCode::Up,
                 modifiers: _,
                 kind: _,
                 state: _,
             } => {
-                if self.scroll > 0 {
-                    self.scroll -= 1;
+                if self.cursor > 0 {
+                    self.cursor -= 1;
                 }
             },
-            event::KeyEvent { //Handle keyboard down
+            event::KeyEvent{ // Handle keyboard page up
+                code: event::KeyCode::PageUp,
+                modifiers: _,
+                kind: _,
+                state: _,
+            } => {
+                if self.cursor > 10 {
+                    self.cursor -= 10;
+                } else {
+                    self.cursor = 0;
+                }
+            },
+            event::KeyEvent { // Handle keyboard down
                 code: event::KeyCode::Down,
                 modifiers: _,
                 kind: _,
                 state: _,
             } => {
-                if self.scroll < self.json_lines_count - 1 {
-                    self.scroll += 1;
+                if self.cursor < self.json_lines_count - 1 {
+                    self.cursor += 1;
+                }
+            },
+            event::KeyEvent{ // Handle keyboard page down
+                code: event::KeyCode::PageDown,
+                modifiers: _,
+                kind: _,
+                state: _,
+            } => {
+                if self.cursor < self.json_lines_count - 10 {
+                    self.cursor += 10;
+                } else {
+                    self.cursor = self.json_lines_count - 1;
                 }
             },
             _ => {}
@@ -276,10 +331,17 @@ impl Drawable for Json<'_> {
         let right_title: String = match &self.right_title {
             Some(right_title) => right_title.clone(),
             None => String::new()
-        }
-        ;
+        };
+        let cursor_info: String = format!("{} / {}", self.cursor + 1, self.json_lines_count);
+        let height = area.height - 3; // 2 for borders
+        let scroll: (u16, u16) = (if (self.cursor as u16) > height {
+            self.cursor as u16 - height
+        } else {
+            0
+        }, 0);
         
-        let content = Paragraph::new(self.json.clone())
+        
+        let content = Paragraph::new(self.process_json_content())
             .block(Block::default()
                 .title(
                     Span::styled(
@@ -300,6 +362,18 @@ impl Drawable for Json<'_> {
                     )
                     .alignment(Alignment::Right)
                 )
+                .title(
+                    Title::from(
+                        Span::styled(
+                            cursor_info.as_str(),
+                            Style::default()
+                                .fg(if self.selected {selected_fg_color} else {fg_color})
+                                .bg(bg_color)
+                        )
+                    )
+                    .alignment(Alignment::Right)
+                    .position(Position::Bottom)
+                )
                 .borders(Borders::ALL)
                 .border_style(
                     Style::default()
@@ -310,7 +384,8 @@ impl Drawable for Json<'_> {
             .style(Style::default()
                 .fg(fg_color)
                 .bg(bg_color)
-            );
+            )
+            .scroll(scroll);
         
         f.render_widget(content, area);
         Ok(())

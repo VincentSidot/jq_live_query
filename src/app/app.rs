@@ -117,8 +117,15 @@ impl App<'_> {
                         self.json_output.set_selected(&self.selected);
                     }
                     event::Event::Key(event) => {
-                        self.input.handle_event(event);
-                        self.json_output.apply_filter(&mut self.input);
+                        match self.selected {
+                            Selected::Input => {
+                                self.input.handle_event(&event);
+                                self.json_output.apply_filter(&mut self.input);
+                            },
+                            Selected::JsonFiltered | Selected::JsonBase => {
+                                self.json_output.handle_event(&event);
+                            },
+                        }
                     }
                     _ => {}
                 }

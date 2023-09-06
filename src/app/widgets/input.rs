@@ -127,7 +127,7 @@ impl<'a> Input<'a>{
         
     }
 
-    pub fn handle_event(&mut self, event: event::KeyEvent) -> () {
+    pub fn handle_event(&mut self, event: &event::KeyEvent) -> () {
         if self.selected == true {
             match event {
                 event::KeyEvent{ // Handle backspace
@@ -212,7 +212,7 @@ impl<'a> Input<'a>{
                     kind: _,
                     state: _,
                 } => {
-                    self.value.insert(self.cursor_position, c);
+                    self.value.insert(self.cursor_position, *c);
                     self.cursor_position += 1;
                 }
                 _ => {}
