@@ -221,25 +221,6 @@ impl<'a> Json<'a> {
         &self.raw
     }
 
-    fn process_json_content(&self) -> Text<'a> {
-        let mut content = self.json.clone();
-        if self.selected {
-            for (i, line) in content.iter_mut().enumerate() {
-                line.spans.insert(
-                    0,
-                    Span::from(
-                        if self.cursor == i {
-                            "> "
-                        } else {
-                            "  "
-                        }
-                    )
-                )
-            }
-        }
-        Text::from(content)
-    }
-
     pub fn set_json(&mut self, json: String) {
         let json_text: Vec<Line>;
         self.raw = json;
@@ -264,6 +245,58 @@ impl<'a> Json<'a> {
             },
         };
         self.json_lines_count = self.json.len();
+        self.cursor = 0; // Reset cursor position
+        // TO AVOID LITTLE NOT FUNNY BUGS
+        // FUCK ME
+    }
+
+    fn process_json_content(&self, max_lines: usize) -> Text<'a> {
+        let cursor_style = Style::default()
+            .fg(
+                if self.selected {
+                    self.config.color.json_cursor_foreground
+                } else {
+                    self.config.color.foreground
+                }
+            )
+            .bg(self.config.color.background);
+        
+        // If the cursor is on first line of the chunk
+        // we need to add a line before the chunk
+        // Else if the cursor is on the last line of the chunk
+        // we need to add a line after the chunk
+        // If cursor is at first line of content we don't need to add a line before
+        // Same if cursor is at last line of content we don't need to add a line after
+
+        let json_lines = self.json_lines_count;
+
+        let (first_line, last_line, cursor_pos) = match (self.cursor / max_lines, self.cursor % max_lines) {
+            (0, context_cursor) => {
+                (0, std::cmp::min(max_lines, json_lines), context_cursor)
+            }
+            (chunk, context) if chunk == json_lines => {
+                ((json_lines - max_lines), (json_lines), context)
+            }
+            (chunk, context) => {
+                ((chunk * max_lines), std::cmp::min((chunk + 1) * max_lines, json_lines), context)
+            }
+        };
+
+        let mut content = self.json[first_line..last_line].to_vec();
+        for (i, line) in content.iter_mut().enumerate() {
+            line.spans.insert(
+                0,
+                Span::styled(
+                    if i == cursor_pos {
+                        "▷ "
+                    } else {
+                        "  "
+                    },
+                    cursor_style
+                )
+            )
+        }
+        Text::from(content)
     }
 
     pub fn handle_event(&mut self, event: &event::KeyEvent) -> () {
@@ -333,15 +366,10 @@ impl Drawable for Json<'_> {
             None => String::new()
         };
         let cursor_info: String = format!("{} / {}", self.cursor + 1, self.json_lines_count);
-        let height = area.height - 3; // 2 for borders
-        let scroll: (u16, u16) = (if (self.cursor as u16) > height {
-            self.cursor as u16 - height
-        } else {
-            0
-        }, 0);
+        let height = (area.height - 2) as usize;
         
         
-        let content = Paragraph::new(self.process_json_content())
+        let content = Paragraph::new(self.process_json_content(height))
             .block(Block::default()
                 .title(
                     Span::styled(
@@ -384,8 +412,7 @@ impl Drawable for Json<'_> {
             .style(Style::default()
                 .fg(fg_color)
                 .bg(bg_color)
-            )
-            .scroll(scroll);
+            );
         
         f.render_widget(content, area);
         Ok(())

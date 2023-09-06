@@ -39,6 +39,20 @@ impl Selected {
         }
         self
     }
+    fn prev(&mut self) -> &Selected{
+        match self {
+            Selected::Input => {
+                *self = Selected::JsonBase;
+            },
+            Selected::JsonFiltered => {
+                *self = Selected::Input;
+            },
+            Selected::JsonBase => {
+                *self = Selected::JsonFiltered;
+            },
+        }
+        self
+    }
 }
 
 pub struct App<'a> {
@@ -108,7 +122,17 @@ impl App<'_> {
                     }
                     event::Event::Key(event::KeyEvent {
                         code: event::KeyCode::Tab,
-                        modifiers: _,
+                        modifiers: event::KeyModifiers::CONTROL | event::KeyModifiers::SHIFT | event::KeyModifiers::SUPER,
+                        kind: _,
+                        state: _,
+                    }) => {
+                        self.selected.prev();
+                        self.input.set_selected(&self.selected);
+                        self.json_output.set_selected(&self.selected);
+                    }                    
+                    event::Event::Key(event::KeyEvent {
+                        code: event::KeyCode::Tab,
+                        modifiers: event::KeyModifiers::NONE,
                         kind: _,
                         state: _,
                     }) => {

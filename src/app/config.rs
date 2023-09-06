@@ -9,6 +9,7 @@ pub struct _Color {
     pub invalid_foreground: Color,
     pub cursor_background: Color,
     pub cursor_foreground: Color,
+    pub json_cursor_foreground: Color,
 }
 
 pub struct _Json {
@@ -36,6 +37,7 @@ impl Config {
                 invalid_foreground: Color::Red,
                 cursor_background: Color::White,
                 cursor_foreground: Color::Reset,
+                json_cursor_foreground: Color::Green,
             },
             json: _Json {
                 json_key: Color::Cyan,
